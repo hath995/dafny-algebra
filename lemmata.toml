@@ -1,0 +1,21 @@
+[package]
+name = "dafny-algebra"
+version = "1.0.0"
+description = "Verified abstract algebra for Dafny: the algebraic hierarchy (magma..integral-domain..field), semirings and star semirings, lattices/Boolean algebras/semilattices, the order hierarchy (preorder..total order), abstract collections, subgroups, ring ideals and quotients, modules and vector spaces, matrices over rings/semirings, and medians."
+license = "MIT"
+keywords = ["dafny", "algebra", "verification", "math", "abstract-algebra", "matrices", "lattices", "semiring", "ideals", "modules", "boolean-algebra", "order-theory"]
+
+[toolchain]
+dafny = ">= 4.10.0"
+
+[source]
+include = ["src/**/*.dfy"]
+
+[options]
+standard-libraries = true
+
+[verification]
+expected-errors = [
+]
+
+[dependencies]
