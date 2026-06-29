@@ -9,7 +9,9 @@ include "lattices.dfy"
 // order; a TotalOrder is the extra "any two are comparable" on top of that.
 abstract module Preorder {
     type T(==, !new)
-    ghost predicate Leq(a: T, b: T)
+    // Compiled (not ghost) so it can be turned into a relation value and used by
+    // executable code such as the sorts behind median.dfy and fold.dfy.
+    predicate Leq(a: T, b: T)
 
     lemma Refl(a: T)
         ensures Leq(a, a)
@@ -52,6 +54,8 @@ abstract module PartialOrder refines Preorder {
 }
 
 abstract module TotalOrder refines PartialOrder {
+    import opened Std.Relations
+
     lemma Total(a: T, b: T)
         ensures Leq(a, b) || Leq(b, a)
 
@@ -61,12 +65,28 @@ abstract module TotalOrder refines PartialOrder {
     {
         Total(a, b);
     }
+
+    // The bridge to the standard library: package Leq as a relation VALUE, and
+    // prove it satisfies Std.Relations.TotalOrdering. This is what lets the order
+    // drive executable, relation-parameterized algorithms (MergeSortBy, folds)
+    // while the four order laws live in exactly one place.
+    function AsRelation(): (T, T) -> bool { (a, b) => Leq(a, b) }
+
+    lemma IsTotalOrdering()
+        ensures TotalOrdering(AsRelation())
+    {
+        var R := AsRelation();
+        forall a ensures R(a, a) { Refl(a); }
+        forall a, b | R(a, b) && R(b, a) ensures a == b { Antisym(a, b); }
+        forall a, b, c | R(a, b) && R(b, c) ensures R(a, c) { Trans(a, b, c); }
+        forall a, b ensures R(a, b) || R(b, a) { Total(a, b); }
+    }
 }
 
 // The integers under <= : the prototypical total order.
 module IntOrder refines TotalOrder {
     type T = int
-    ghost predicate Leq(a: T, b: T) { a <= b }
+    predicate Leq(a: T, b: T) { a <= b }
 
     lemma Refl(a: T) {}
     lemma Trans(a: T, b: T, c: T) {}

@@ -1,66 +1,78 @@
-abstract module Medians {
-    import opened Std.Relations
-    import opened Std.Collections.Seq
-    type T(==,!new)
+include "orders.dfy"
 
-    predicate Lte(a: T, b: T)
+// Medians, built on the order hierarchy: a Medians module IS a TotalOrder (it
+// refines orders.dfy's TotalOrder), so it inherits the comparison Leq and the
+// four order laws (Refl/Trans/Antisym/Total) instead of taking an unproven
+// `TotalOrdering(Lte)` hypothesis on every operation. Sorting goes through the
+// inherited AsRelation()/IsTotalOrdering() bridge to the standard library.
+abstract module Medians refines TotalOrder {
+    import opened Std.Collections.Seq
 
     function add(a: T, b: T): T
     function halve(a: T): T
 
+    // The data sorted by the inherited order. Discharging MergeSortBy's
+    // TotalOrdering precondition INTERNALLY (via IsTotalOrdering) means Sorted --
+    // and everything built on it -- needs no order hypothesis of its own.
+    function Sorted(xs: seq<T>): (ss: seq<T>)
+        ensures multiset(ss) == multiset(xs)
+        ensures |ss| == |xs|
+        ensures SortedBy(AsRelation(), ss)
+    {
+        IsTotalOrdering();
+        MergeSortBy(AsRelation(), xs)
+    }
+
     function Median(xs: seq<T>): T
-        requires TotalOrdering(Lte)
         requires |xs| > 0
     {
-        var ss := MergeSortBy(Lte, xs);
+        var ss := Sorted(xs);
         if |ss| % 2 == 0 then halve(add(ss[|ss|/2 - 1], ss[|ss|/2])) else ss[|ss|/2]
     }
 
-    // A median splits the (sorted) data: everything up to the middle is Lte it,
-    // and everything from the middle on is Gte it. For odd length the Median is
+    // A median splits the (sorted) data: everything up to the middle is Leq it,
+    // and everything from the middle on is Geq it. For odd length the Median is
     // exactly the middle order statistic, so this holds with no assumptions
-    // beyond Lte being a total ordering.
+    // beyond the inherited order being total.
     lemma MedianSplitsOdd(xs: seq<T>)
-        requires TotalOrdering(Lte)
         requires |xs| > 0 && |xs| % 2 == 1
-        ensures var ss := MergeSortBy(Lte, xs);
+        ensures var ss := Sorted(xs);
             && Median(xs) == ss[|xs|/2]
-            && (forall i :: 0 <= i <= |xs|/2 ==> Lte(ss[i], Median(xs)))     // lower half (and middle) <= median
-            && (forall i :: |xs|/2 <= i < |xs| ==> Lte(Median(xs), ss[i]))   // middle (and upper half) >= median
+            && (forall i :: 0 <= i <= |xs|/2 ==> Leq(ss[i], Median(xs)))     // lower half (and middle) <= median
+            && (forall i :: |xs|/2 <= i < |xs| ==> Leq(Median(xs), ss[i]))   // middle (and upper half) >= median
     {
-        var ss := MergeSortBy(Lte, xs);          // SortedBy(Lte, ss), multiset(ss) == multiset(xs)
-        assert Reflexive(Lte);                   // from TotalOrdering, so Lte(ss[mid], ss[mid])
+        var ss := Sorted(xs);                    // SortedBy(AsRelation(), ss); Leq is reflexive
+        Refl(ss[|xs|/2]);
     }
 
-    // The claim about the *original* (unsorted) data: at least half of xs is Lte
-    // the median, and at least half is Gte it — the rank/balance definition. The
+    // The claim about the *original* (unsorted) data: at least half of xs is Leq
+    // the median, and at least half is Geq it -- the rank/balance definition. The
     // witnesses are the lower/upper halves of the sorted data, sub-multisets of
     // xs because multiset(ss) == multiset(xs).
     lemma MedianBalanceOdd(xs: seq<T>)
-        requires TotalOrdering(Lte)
         requires |xs| > 0 && |xs| % 2 == 1
-        ensures exists lo :: lo <= multiset(xs) && |lo| == (|xs|+1)/2 && (forall e :: e in lo ==> Lte(e, Median(xs)))
-        ensures exists hi :: hi <= multiset(xs) && |hi| == (|xs|+1)/2 && (forall e :: e in hi ==> Lte(Median(xs), e))
+        ensures exists lo :: lo <= multiset(xs) && |lo| == (|xs|+1)/2 && (forall e :: e in lo ==> Leq(e, Median(xs)))
+        ensures exists hi :: hi <= multiset(xs) && |hi| == (|xs|+1)/2 && (forall e :: e in hi ==> Leq(Median(xs), e))
     {
-        var ss := MergeSortBy(Lte, xs);
+        var ss := Sorted(xs);
         var mid := |xs| / 2;
         assert Median(xs) == ss[mid];
-        assert SortedBy(Lte, ss);
-        assert Reflexive(Lte);
+        assert SortedBy(AsRelation(), ss);
         assert |ss| == |xs|;
 
         var lo := multiset(ss[..mid+1]);
         assert ss[..mid+1] + ss[mid+1..] == ss;
         assert multiset(xs) == lo + multiset(ss[mid+1..]);      // lo <= multiset(xs)
-        forall e | e in lo ensures Lte(e, Median(xs)) {
+        forall e | e in lo ensures Leq(e, Median(xs)) {
             var k :| 0 <= k < mid+1 && ss[..mid+1][k] == e;     // e is some ss[k], k <= mid
             assert ss[k] == e;
+            Refl(ss[mid]);                                      // covers k == mid; k < mid is SortedBy
         }
 
         var hi := multiset(ss[mid..]);
         assert ss[..mid] + ss[mid..] == ss;
         assert multiset(xs) == multiset(ss[..mid]) + hi;        // hi <= multiset(xs)
-        forall e | e in hi ensures Lte(Median(xs), e) {
+        forall e | e in hi ensures Leq(Median(xs), e) {
             var k :| 0 <= k < |ss[mid..]| && ss[mid..][k] == e; // e is some ss[mid+k], mid+k >= mid
             assert ss[mid + k] == e;
         }
@@ -71,76 +83,65 @@ abstract module Medians {
     // (true for int/real; fails for bv8 on overflow). That property is taken as
     // a hypothesis here and discharged by the concrete refinements below.
     lemma MedianSplitsEven(xs: seq<T>)
-        requires TotalOrdering(Lte)
         requires |xs| > 0 && |xs| % 2 == 0
-        requires forall a, b :: Lte(a, b) ==> Lte(a, halve(add(a, b))) && Lte(halve(add(a, b)), b)
-        ensures var ss := MergeSortBy(Lte, xs);
+        requires forall a, b :: Leq(a, b) ==> Leq(a, halve(add(a, b))) && Leq(halve(add(a, b)), b)
+        ensures var ss := Sorted(xs);
             && Median(xs) == halve(add(ss[|xs|/2 - 1], ss[|xs|/2]))
-            && Lte(ss[|xs|/2 - 1], Median(xs))    // lower central <= median
-            && Lte(Median(xs), ss[|xs|/2])        // median <= upper central
+            && Leq(ss[|xs|/2 - 1], Median(xs))    // lower central <= median
+            && Leq(Median(xs), ss[|xs|/2])        // median <= upper central
     {
-        var ss := MergeSortBy(Lte, xs);
-        assert |ss| == |xs|;
-        assert SortedBy(Lte, ss);                 // so Lte(ss[mid-1], ss[mid]) for the two centrals
+        var ss := Sorted(xs);
+        assert SortedBy(AsRelation(), ss);        // so Leq(ss[mid-1], ss[mid]) for the two centrals
     }
 }
 
 module IntMedian refines Medians {
     type T = int
 
-    function add(a: T, b: T):T {
-        a+b
-    }
+    function add(a: T, b: T): T { a + b }
+    function halve(a: T): T { a / 2 }
+    predicate Leq(a: T, b: T) { a <= b }
 
-    function halve(a: T):T {
-        a / 2
-    }
-
-    predicate Lte(a: T, b:T ) {
-        a <= b
-    }
+    lemma Refl(a: T) {}
+    lemma Trans(a: T, b: T, c: T) {}
+    lemma Antisym(a: T, b: T) {}
+    lemma Total(a: T, b: T) {}
 
     // Integer (floor) averaging stays between its inputs, so the even-length
     // median is a genuine median.
     lemma Averaging()
-        ensures forall a: T, b: T :: Lte(a, b) ==> Lte(a, halve(add(a, b))) && Lte(halve(add(a, b)), b)
+        ensures forall a: T, b: T :: Leq(a, b) ==> Leq(a, halve(add(a, b))) && Leq(halve(add(a, b)), b)
     {}
 }
 
 module BvMedian refines Medians {
     type T = bv8
 
-    function add(a: T, b: T):T {
-        a+b
-    }
+    function add(a: T, b: T): T { a + b }
+    function halve(a: T): T { a >> 1 }
+    predicate Leq(a: T, b: T) { a <= b }
 
-    function halve(a: T):T {
-        a >> 1
-    }
-
-    predicate Lte(a: T, b:T ) {
-        a <= b
-    }
+    lemma Refl(a: T) {}
+    lemma Trans(a: T, b: T, c: T) {}
+    lemma Antisym(a: T, b: T) {}
+    lemma Total(a: T, b: T) {}
 }
 
 module RealMedian refines Medians {
     type T = real
 
-    function add(a: T, b: T):T {
-        a+b
-    }
+    function add(a: T, b: T): T { a + b }
+    function halve(a: T): T { a / 2.0 }
+    predicate Leq(a: T, b: T) { a <= b }
 
-    function halve(a: T):T {
-        a/2.0
-    }
-
-    predicate Lte(a: T, b:T ) {
-        a <= b
-    }
+    lemma Refl(a: T) {}
+    lemma Trans(a: T, b: T, c: T) {}
+    lemma Antisym(a: T, b: T) {}
+    lemma Total(a: T, b: T) {}
 
     // Real averaging is exact, so the even-length median is a genuine median.
     lemma Averaging()
-        ensures forall a: T, b: T :: Lte(a, b) ==> Lte(a, halve(add(a, b))) && Lte(halve(add(a, b)), b)
+        ensures forall a: T, b: T :: Leq(a, b) ==> Leq(a, halve(add(a, b))) && Leq(halve(add(a, b)), b)
     {}
 }
 
