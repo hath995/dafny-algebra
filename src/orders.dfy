@@ -54,8 +54,6 @@ abstract module PartialOrder refines Preorder {
 }
 
 abstract module TotalOrder refines PartialOrder {
-    import opened Std.Relations
-
     lemma Total(a: T, b: T)
         ensures Leq(a, b) || Leq(b, a)
 
@@ -66,20 +64,138 @@ abstract module TotalOrder refines PartialOrder {
         Total(a, b);
     }
 
-    // The bridge to the standard library: package Leq as a relation VALUE, and
-    // prove it satisfies Std.Relations.TotalOrdering. This is what lets the order
-    // drive executable, relation-parameterized algorithms (MergeSortBy, folds)
-    // while the four order laws live in exactly one place.
-    function AsRelation(): (T, T) -> bool { (a, b) => Leq(a, b) }
+    // ---- a verified merge sort over the order, available to every TotalOrder ----
+    // Sorting needs exactly a total order, so it lives here rather than in any one
+    // client (e.g. medians). It is written directly against Leq and its laws -- no
+    // relation parameter, no standard-library dependency.
 
-    lemma IsTotalOrdering()
-        ensures TotalOrdering(AsRelation())
+    ghost predicate SortedBy(s: seq<T>) {
+        forall i, j :: 0 <= i < j < |s| ==> Leq(s[i], s[j])
+    }
+
+    // In a sorted sequence the head is Leq every element (reflexive at the head).
+    lemma HeadIsLeast(s: seq<T>)
+        requires SortedBy(s) && |s| > 0
+        ensures forall e :: e in s ==> Leq(s[0], e)
     {
-        var R := AsRelation();
-        forall a ensures R(a, a) { Refl(a); }
-        forall a, b | R(a, b) && R(b, a) ensures a == b { Antisym(a, b); }
-        forall a, b, c | R(a, b) && R(b, c) ensures R(a, c) { Trans(a, b, c); }
-        forall a, b ensures R(a, b) || R(b, a) { Total(a, b); }
+        forall e | e in s ensures Leq(s[0], e) {
+            var k :| 0 <= k < |s| && s[k] == e;
+            if k == 0 { Refl(s[0]); }   // k > 0 is SortedBy
+        }
+    }
+
+    // ...hence the head is Leq every element of the tail.
+    lemma TailBounded(s: seq<T>)
+        requires SortedBy(s) && |s| > 0
+        ensures forall e :: e in s[1..] ==> Leq(s[0], e)
+    {
+        HeadIsLeast(s);
+        assert s == [s[0]] + s[1..];   // e in s[1..] ==> e in s
+    }
+
+    // Prepending an element below all of a sorted sequence keeps it sorted.
+    lemma PrependBelow(x: T, s: seq<T>)
+        requires SortedBy(s)
+        requires forall e :: e in s ==> Leq(x, e)
+        ensures SortedBy([x] + s)
+    {
+        var r := [x] + s;
+        forall i, j | 0 <= i < j < |r| ensures Leq(r[i], r[j]) {
+            if i == 0 {
+                assert r[j] == s[j-1] && s[j-1] in s;   // Leq(x, s[j-1])
+            } else {
+                assert r[i] == s[i-1] && r[j] == s[j-1];   // SortedBy(s)
+            }
+        }
+    }
+
+    // If a pivot is Leq its own (sorted) tail and Leq the other (sorted) sequence's
+    // head, then it is Leq every element of their merge.
+    lemma MergeBelow(pivot: T, pivotTail: seq<T>, other: seq<T>, merged: seq<T>)
+        requires SortedBy(pivotTail) && SortedBy(other)
+        requires forall e :: e in pivotTail ==> Leq(pivot, e)
+        requires |other| == 0 || Leq(pivot, other[0])
+        requires multiset(merged) == multiset(pivotTail) + multiset(other)
+        ensures forall e :: e in merged ==> Leq(pivot, e)
+    {
+        if |other| > 0 {
+            HeadIsLeast(other);
+            forall e | e in other ensures Leq(pivot, e) { Trans(pivot, other[0], e); }
+        }
+        forall e | e in merged ensures Leq(pivot, e) {
+            assert e in multiset(merged);                          // seq membership ==> multiset
+            assert e in multiset(pivotTail) || e in multiset(other);
+        }
+    }
+
+    // Merge two sorted sequences into one, preserving elements.
+    function MergeWith(left: seq<T>, right: seq<T>): (result: seq<T>)
+        requires SortedBy(left) && SortedBy(right)
+        ensures multiset(result) == multiset(left) + multiset(right)
+        ensures |result| == |left| + |right|
+        ensures SortedBy(result)
+        decreases |left| + |right|
+    {
+        if |left| == 0 then right
+        else if |right| == 0 then left
+        else if Leq(left[0], right[0]) then
+            var merged := MergeWith(left[1..], right);
+            assert left == [left[0]] + left[1..];
+            TailBounded(left);
+            MergeBelow(left[0], left[1..], right, merged);
+            PrependBelow(left[0], merged);
+            [left[0]] + merged
+        else
+            Total(left[0], right[0]);   // !Leq(left[0],right[0]) ==> Leq(right[0],left[0])
+            var merged := MergeWith(left, right[1..]);
+            assert right == [right[0]] + right[1..];
+            TailBounded(right);
+            MergeBelow(right[0], right[1..], left, merged);
+            PrependBelow(right[0], merged);
+            [right[0]] + merged
+    }
+
+    // Recursive merge sort: the data sorted by the order. No order hypothesis
+    // needed -- Leq and its laws are part of the module.
+    function Sorted(xs: seq<T>): (ss: seq<T>)
+        ensures multiset(ss) == multiset(xs)
+        ensures |ss| == |xs|
+        ensures SortedBy(ss)
+        decreases |xs|
+    {
+        if |xs| <= 1 then xs
+        else
+            var mid := |xs| / 2;
+            assert xs == xs[..mid] + xs[mid..];
+            MergeWith(Sorted(xs[..mid]), Sorted(xs[mid..]))
+    }
+
+    // Two sequences that are sorted and have the same elements are identical: a
+    // total order admits a UNIQUE sorted arrangement of any multiset. (The heads
+    // are forced equal -- each is the minimum of the common multiset, pinned by
+    // antisymmetry -- then recurse.)
+    lemma SortedUnique(xs: seq<T>, ys: seq<T>)
+        requires SortedBy(xs) && SortedBy(ys)
+        requires multiset(xs) == multiset(ys)
+        ensures xs == ys
+        decreases |xs|
+    {
+        if xs != [] {
+            assert xs == [xs[0]] + xs[1..];
+            assert ys == [ys[0]] + ys[1..];
+            assert multiset(xs) == multiset{xs[0]} + multiset(xs[1..]);
+            assert multiset(ys) == multiset{ys[0]} + multiset(ys[1..]);
+            // both heads live in the shared multiset, hence in the other sequence
+            assert xs[0] in multiset(ys) && ys[0] in multiset(xs);
+            assert xs[0] in ys && ys[0] in xs;
+            HeadIsLeast(xs);                       // xs[0] <= ys[0] (ys[0] in xs)
+            HeadIsLeast(ys);                       // ys[0] <= xs[0] (xs[0] in ys)
+            Antisym(xs[0], ys[0]);                 // ==> xs[0] == ys[0]
+            assert multiset(xs[1..]) == multiset(xs) - multiset{xs[0]};
+            assert multiset(ys[1..]) == multiset(ys) - multiset{ys[0]};
+            assert multiset(xs[1..]) == multiset(ys[1..]);   // equal heads cancel
+            SortedUnique(xs[1..], ys[1..]);
+        }
     }
 }
 

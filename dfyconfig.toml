@@ -1,2 +1,2 @@
 [options]
-standard-libraries = true
+standard-libraries = false

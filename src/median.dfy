@@ -1,27 +1,14 @@
 include "orders.dfy"
 
 // Medians, built on the order hierarchy: a Medians module IS a TotalOrder (it
-// refines orders.dfy's TotalOrder), so it inherits the comparison Leq and the
-// four order laws (Refl/Trans/Antisym/Total) instead of taking an unproven
-// `TotalOrdering(Lte)` hypothesis on every operation. Sorting goes through the
-// inherited AsRelation()/IsTotalOrdering() bridge to the standard library.
+// refines orders.dfy's TotalOrder), so it inherits the comparison Leq, the four
+// order laws (Refl/Trans/Antisym/Total), AND the verified merge sort (Sorted /
+// SortedBy) defined there -- no `TotalOrdering(Lte)` hypothesis, no standard
+// library. All that is added here is averaging (add/halve) and the median itself.
 abstract module Medians refines TotalOrder {
-    import opened Std.Collections.Seq
 
     function add(a: T, b: T): T
     function halve(a: T): T
-
-    // The data sorted by the inherited order. Discharging MergeSortBy's
-    // TotalOrdering precondition INTERNALLY (via IsTotalOrdering) means Sorted --
-    // and everything built on it -- needs no order hypothesis of its own.
-    function Sorted(xs: seq<T>): (ss: seq<T>)
-        ensures multiset(ss) == multiset(xs)
-        ensures |ss| == |xs|
-        ensures SortedBy(AsRelation(), ss)
-    {
-        IsTotalOrdering();
-        MergeSortBy(AsRelation(), xs)
-    }
 
     function Median(xs: seq<T>): T
         requires |xs| > 0
@@ -41,7 +28,7 @@ abstract module Medians refines TotalOrder {
             && (forall i :: 0 <= i <= |xs|/2 ==> Leq(ss[i], Median(xs)))     // lower half (and middle) <= median
             && (forall i :: |xs|/2 <= i < |xs| ==> Leq(Median(xs), ss[i]))   // middle (and upper half) >= median
     {
-        var ss := Sorted(xs);                    // SortedBy(AsRelation(), ss); Leq is reflexive
+        var ss := Sorted(xs);                    // SortedBy(ss); Leq is reflexive at the middle
         Refl(ss[|xs|/2]);
     }
 
@@ -57,7 +44,7 @@ abstract module Medians refines TotalOrder {
         var ss := Sorted(xs);
         var mid := |xs| / 2;
         assert Median(xs) == ss[mid];
-        assert SortedBy(AsRelation(), ss);
+        assert SortedBy(ss);
         assert |ss| == |xs|;
 
         var lo := multiset(ss[..mid+1]);
@@ -91,7 +78,7 @@ abstract module Medians refines TotalOrder {
             && Leq(Median(xs), ss[|xs|/2])        // median <= upper central
     {
         var ss := Sorted(xs);
-        assert SortedBy(AsRelation(), ss);        // so Leq(ss[mid-1], ss[mid]) for the two centrals
+        assert SortedBy(ss);                      // so Leq(ss[mid-1], ss[mid]) for the two centrals
     }
 }
 
@@ -149,7 +136,8 @@ module TestMedians {
     import IM = IntMedian
     import BVM = BvMedian
 
-    method Main() {
+    @Test
+    method test() {
         var ints := [1,2,3,4,5];
         print "\nints := ", IM.Median(ints);
         var bvs: seq<bv8> := [1,2,3,4,5];

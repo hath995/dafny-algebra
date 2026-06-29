@@ -12,7 +12,9 @@ dafny = ">= 4.10.0"
 include = ["src/**/*.dfy"]
 
 [options]
-standard-libraries = true
+standard-libraries = false
+# general-traits = "datatype"
+# type-system-refresh = true
 
 [verification]
 expected-errors = [
