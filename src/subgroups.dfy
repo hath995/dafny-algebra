@@ -253,7 +253,7 @@ abstract module GroupHom {
         ensures F(G.op(a, b)) == H.op(F(a), F(b))
 
     ghost predicate Injective() {
-        forall a, b :: F(a) == F(b) ==> a == b
+        forall a: G.T, b: G.T :: F(a) == F(b) ==> a == b
     }
 
     // F(e_G) = e_H : F(e) = F(e.e) = F(e).F(e), then cancel.
@@ -300,8 +300,11 @@ module Z4toZ12 refines GroupHom {
     lemma IsInjective()
         ensures Injective()
     {
-        forall a: G.T, b: G.T | F(a) == F(b) ensures a == b {
+        forall a: G.T, b: G.T | F(a) == F(b)
+            ensures a == b
+        {
             assert F(a) == 3 * a && F(b) == 3 * b;
+            assert a == b;
         }
     }
 
