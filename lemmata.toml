@@ -9,12 +9,10 @@ keywords = ["dafny", "algebra", "verification", "math", "abstract-algebra", "mat
 dafny = ">= 4.10.0"
 
 [source]
-include = ["src/**/*.dfy"]
+to_export = ["src/**/*.dfy"]
 
 [options]
 standard-libraries = false
-# general-traits = "datatype"
-# type-system-refresh = true
 
 [verification]
 expected-errors = [

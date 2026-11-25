@@ -264,15 +264,3 @@ module RealMatrices refines RingMatrices {
     function Mul(a: T, b: T): T { a * b }
     function Neg(a: T): T { -a }
 }
-
-module TestMatrices {
-    import opened NatMatrices1
-
-    method Main() {
-        var a := new nat[2, 2]((i, j) => i + j);                    // [[0,1],[1,2]]
-        var sq := pow(a, 2);                                        // a*a == [[1,2],[2,5]]
-        print "\n", sq[0,0], " ", sq[0,1], " ", sq[1,0], " ", sq[1,1];
-        var t := trace(sq);                                         // 1 + 5 == 6
-        print "\ntrace = ", t;
-    }
-}

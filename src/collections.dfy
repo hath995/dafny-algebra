@@ -6,33 +6,33 @@
 abstract module Collection {
     type C(!new)<A(==, !new)>
 
-    ghost predicate In<A(==, !new)>(x: A, s: C<A>)
-    ghost function Empty<A(==, !new)>(): C<A>
-    ghost function Single<A(==, !new)>(x: A): C<A>
-    ghost function Union<A(==, !new)>(s: C<A>, t: C<A>): C<A>
-    ghost function Inter<A(==, !new)>(s: C<A>, t: C<A>): C<A>
-    ghost function Diff<A(==, !new)>(s: C<A>, t: C<A>): C<A>
-    ghost predicate Subset<A(==, !new)>(s: C<A>, t: C<A>)
+    ghost predicate In<A(!new)>(x: A, s: C<A>)
+    ghost function Empty<A(!new)>(): C<A>
+    ghost function Single<A(!new)>(x: A): C<A>
+    ghost function Union<A(!new)>(s: C<A>, t: C<A>): C<A>
+    ghost function Inter<A(!new)>(s: C<A>, t: C<A>): C<A>
+    ghost function Diff<A(!new)>(s: C<A>, t: C<A>): C<A>
+    ghost predicate Subset<A(!new)>(s: C<A>, t: C<A>)
 
     // ---- characterization laws (what each operation means, member-wise) ----
-    lemma EmptyChar<A(==, !new)>(x: A)
+    lemma EmptyChar<A(!new)>(x: A)
         ensures !In(x, Empty<A>())
-    lemma SingleChar<A(==, !new)>(y: A, x: A)
+    lemma SingleChar<A(!new)>(y: A, x: A)
         ensures In(x, Single(y)) <==> x == y
-    lemma UnionChar<A(==, !new)>(s: C<A>, t: C<A>, x: A)
+    lemma UnionChar<A(!new)>(s: C<A>, t: C<A>, x: A)
         ensures In(x, Union(s, t)) <==> In(x, s) || In(x, t)
-    lemma InterChar<A(==, !new)>(s: C<A>, t: C<A>, x: A)
+    lemma InterChar<A(!new)>(s: C<A>, t: C<A>, x: A)
         ensures In(x, Inter(s, t)) <==> In(x, s) && In(x, t)
-    lemma DiffChar<A(==, !new)>(s: C<A>, t: C<A>, x: A)
+    lemma DiffChar<A(!new)>(s: C<A>, t: C<A>, x: A)
         ensures In(x, Diff(s, t)) <==> In(x, s) && !In(x, t)
-    lemma SubsetChar<A(==, !new)>(s: C<A>, t: C<A>)
+    lemma SubsetChar<A(!new)>(s: C<A>, t: C<A>)
         ensures Subset(s, t) <==> (forall x :: In(x, s) ==> In(x, t))
-    lemma Extensionality<A(==, !new)>(s: C<A>, t: C<A>)
+    lemma Extensionality<A(!new)>(s: C<A>, t: C<A>)
         requires forall x :: In(x, s) <==> In(x, t)
         ensures s == t
 
     // ---- derived set algebra (proved once from the laws above) ----
-    lemma UnionComm<A(==, !new)>(s: C<A>, t: C<A>)
+    lemma UnionComm<A(!new)>(s: C<A>, t: C<A>)
         ensures Union(s, t) == Union(t, s)
     {
         forall x ensures In(x, Union(s, t)) <==> In(x, Union(t, s)) {
@@ -41,7 +41,7 @@ abstract module Collection {
         Extensionality(Union(s, t), Union(t, s));
     }
 
-    lemma InterComm<A(==, !new)>(s: C<A>, t: C<A>)
+    lemma InterComm<A(!new)>(s: C<A>, t: C<A>)
         ensures Inter(s, t) == Inter(t, s)
     {
         forall x ensures In(x, Inter(s, t)) <==> In(x, Inter(t, s)) {
@@ -50,7 +50,7 @@ abstract module Collection {
         Extensionality(Inter(s, t), Inter(t, s));
     }
 
-    lemma UnionAssoc<A(==, !new)>(s: C<A>, t: C<A>, u: C<A>)
+    lemma UnionAssoc<A(!new)>(s: C<A>, t: C<A>, u: C<A>)
         ensures Union(Union(s, t), u) == Union(s, Union(t, u))
     {
         forall x ensures In(x, Union(Union(s, t), u)) <==> In(x, Union(s, Union(t, u))) {
@@ -60,7 +60,7 @@ abstract module Collection {
         Extensionality(Union(Union(s, t), u), Union(s, Union(t, u)));
     }
 
-    lemma InterAssoc<A(==, !new)>(s: C<A>, t: C<A>, u: C<A>)
+    lemma InterAssoc<A(!new)>(s: C<A>, t: C<A>, u: C<A>)
         ensures Inter(Inter(s, t), u) == Inter(s, Inter(t, u))
     {
         forall x ensures In(x, Inter(Inter(s, t), u)) <==> In(x, Inter(s, Inter(t, u))) {
@@ -70,21 +70,21 @@ abstract module Collection {
         Extensionality(Inter(Inter(s, t), u), Inter(s, Inter(t, u)));
     }
 
-    lemma UnionIdem<A(==, !new)>(s: C<A>)
+    lemma UnionIdem<A(!new)>(s: C<A>)
         ensures Union(s, s) == s
     {
         forall x ensures In(x, Union(s, s)) <==> In(x, s) { UnionChar(s, s, x); }
         Extensionality(Union(s, s), s);
     }
 
-    lemma InterIdem<A(==, !new)>(s: C<A>)
+    lemma InterIdem<A(!new)>(s: C<A>)
         ensures Inter(s, s) == s
     {
         forall x ensures In(x, Inter(s, s)) <==> In(x, s) { InterChar(s, s, x); }
         Extensionality(Inter(s, s), s);
     }
 
-    lemma UnionEmpty<A(==, !new)>(s: C<A>)   // Empty is the identity of Union
+    lemma UnionEmpty<A(!new)>(s: C<A>)   // Empty is the identity of Union
         ensures Union(s, Empty<A>()) == s
     {
         forall x ensures In(x, Union(s, Empty<A>())) <==> In(x, s) {
@@ -93,7 +93,7 @@ abstract module Collection {
         Extensionality(Union(s, Empty<A>()), s);
     }
 
-    lemma InterEmpty<A(==, !new)>(s: C<A>)   // Empty annihilates Inter
+    lemma InterEmpty<A(!new)>(s: C<A>)   // Empty annihilates Inter
         ensures Inter(s, Empty<A>()) == Empty<A>()
     {
         forall x ensures In(x, Inter(s, Empty<A>())) <==> In(x, Empty<A>()) {
@@ -102,7 +102,7 @@ abstract module Collection {
         Extensionality(Inter(s, Empty<A>()), Empty<A>());
     }
 
-    lemma UnionDistribInter<A(==, !new)>(s: C<A>, t: C<A>, u: C<A>)
+    lemma UnionDistribInter<A(!new)>(s: C<A>, t: C<A>, u: C<A>)
         ensures Union(s, Inter(t, u)) == Inter(Union(s, t), Union(s, u))
     {
         forall x ensures In(x, Union(s, Inter(t, u))) <==> In(x, Inter(Union(s, t), Union(s, u))) {
@@ -112,7 +112,7 @@ abstract module Collection {
         Extensionality(Union(s, Inter(t, u)), Inter(Union(s, t), Union(s, u)));
     }
 
-    lemma InterDistribUnion<A(==, !new)>(s: C<A>, t: C<A>, u: C<A>)
+    lemma InterDistribUnion<A(!new)>(s: C<A>, t: C<A>, u: C<A>)
         ensures Inter(s, Union(t, u)) == Union(Inter(s, t), Inter(s, u))
     {
         forall x ensures In(x, Inter(s, Union(t, u))) <==> In(x, Union(Inter(s, t), Inter(s, u))) {
@@ -122,7 +122,7 @@ abstract module Collection {
         Extensionality(Inter(s, Union(t, u)), Union(Inter(s, t), Inter(s, u)));
     }
 
-    lemma AbsorbUnion<A(==, !new)>(s: C<A>, t: C<A>)
+    lemma AbsorbUnion<A(!new)>(s: C<A>, t: C<A>)
         ensures Union(s, Inter(s, t)) == s
     {
         forall x ensures In(x, Union(s, Inter(s, t))) <==> In(x, s) {
@@ -131,7 +131,7 @@ abstract module Collection {
         Extensionality(Union(s, Inter(s, t)), s);
     }
 
-    lemma AbsorbInter<A(==, !new)>(s: C<A>, t: C<A>)
+    lemma AbsorbInter<A(!new)>(s: C<A>, t: C<A>)
         ensures Inter(s, Union(s, t)) == s
     {
         forall x ensures In(x, Inter(s, Union(s, t))) <==> In(x, s) {
@@ -141,7 +141,7 @@ abstract module Collection {
     }
 
     // De Morgan, with Diff(u, -) as relative complement in u.
-    lemma DeMorganUnion<A(==, !new)>(u: C<A>, s: C<A>, t: C<A>)
+    lemma DeMorganUnion<A(!new)>(u: C<A>, s: C<A>, t: C<A>)
         ensures Diff(u, Union(s, t)) == Inter(Diff(u, s), Diff(u, t))
     {
         forall x ensures In(x, Diff(u, Union(s, t))) <==> In(x, Inter(Diff(u, s), Diff(u, t))) {
@@ -151,7 +151,7 @@ abstract module Collection {
         Extensionality(Diff(u, Union(s, t)), Inter(Diff(u, s), Diff(u, t)));
     }
 
-    lemma DeMorganInter<A(==, !new)>(u: C<A>, s: C<A>, t: C<A>)
+    lemma DeMorganInter<A(!new)>(u: C<A>, s: C<A>, t: C<A>)
         ensures Diff(u, Inter(s, t)) == Union(Diff(u, s), Diff(u, t))
     {
         forall x ensures In(x, Diff(u, Inter(s, t))) <==> In(x, Union(Diff(u, s), Diff(u, t))) {
@@ -165,24 +165,24 @@ abstract module Collection {
 // Finite collections.
 module SetColl refines Collection {
     type C<A(==, !new)> = set<A>
-    ghost predicate In<A(==, !new)>(x: A, s: C<A>) { x in s }
-    ghost function Empty<A(==, !new)>(): C<A> { {} }
-    ghost function Single<A(==, !new)>(x: A): C<A> { {x} }
-    ghost function Union<A(==, !new)>(s: C<A>, t: C<A>): C<A> { s + t }
-    ghost function Inter<A(==, !new)>(s: C<A>, t: C<A>): C<A> { s * t }
-    ghost function Diff<A(==, !new)>(s: C<A>, t: C<A>): C<A> { s - t }
-    ghost predicate Subset<A(==, !new)>(s: C<A>, t: C<A>) { s <= t }
+    ghost predicate In<A(!new)>(x: A, s: C<A>) { x in s }
+    ghost function Empty<A(!new)>(): C<A> { {} }
+    ghost function Single<A(!new)>(x: A): C<A> { {x} }
+    ghost function Union<A(!new)>(s: C<A>, t: C<A>): C<A> { s + t }
+    ghost function Inter<A(!new)>(s: C<A>, t: C<A>): C<A> { s * t }
+    ghost function Diff<A(!new)>(s: C<A>, t: C<A>): C<A> { s - t }
+    ghost predicate Subset<A(!new)>(s: C<A>, t: C<A>) { s <= t }
 
-    lemma EmptyChar<A(==, !new)>(x: A) {}
-    lemma SingleChar<A(==, !new)>(y: A, x: A) {}
-    lemma UnionChar<A(==, !new)>(s: C<A>, t: C<A>, x: A) {}
-    lemma InterChar<A(==, !new)>(s: C<A>, t: C<A>, x: A) {}
-    lemma DiffChar<A(==, !new)>(s: C<A>, t: C<A>, x: A) {}
-    lemma SubsetChar<A(==, !new)>(s: C<A>, t: C<A>) {
+    lemma EmptyChar<A(!new)>(x: A) {}
+    lemma SingleChar<A(!new)>(y: A, x: A) {}
+    lemma UnionChar<A(!new)>(s: C<A>, t: C<A>, x: A) {}
+    lemma InterChar<A(!new)>(s: C<A>, t: C<A>, x: A) {}
+    lemma DiffChar<A(!new)>(s: C<A>, t: C<A>, x: A) {}
+    lemma SubsetChar<A(!new)>(s: C<A>, t: C<A>) {
         forall x ensures In(x, s) <==> x in s {}
         forall x ensures In(x, t) <==> x in t {}
     }
-    lemma Extensionality<A(==, !new)>(s: C<A>, t: C<A>) {
+    lemma Extensionality<A(!new)>(s: C<A>, t: C<A>) {
         forall x ensures x in s <==> x in t {
             assert In(x, s) <==> In(x, t);   // instantiate the requires; In unfolds to `in`
         }
@@ -192,24 +192,24 @@ module SetColl refines Collection {
 // Arbitrary (possibly infinite) collections.
 module ISetColl refines Collection {
     type C<!A(==, !new)> = iset<A>
-    ghost predicate In<A(==, !new)>(x: A, s: C<A>) { x in s }
-    ghost function Empty<A(==, !new)>(): C<A> { iset{} }
-    ghost function Single<A(==, !new)>(x: A): C<A> { iset{x} }
-    ghost function Union<A(==, !new)>(s: C<A>, t: C<A>): C<A> { s + t }
-    ghost function Inter<A(==, !new)>(s: C<A>, t: C<A>): C<A> { s * t }
-    ghost function Diff<A(==, !new)>(s: C<A>, t: C<A>): C<A> { s - t }
-    ghost predicate Subset<A(==, !new)>(s: C<A>, t: C<A>) { s <= t }
+    ghost predicate In<A(!new)>(x: A, s: C<A>) { x in s }
+    ghost function Empty<A(!new)>(): C<A> { iset{} }
+    ghost function Single<A(!new)>(x: A): C<A> { iset{x} }
+    ghost function Union<A(!new)>(s: C<A>, t: C<A>): C<A> { s + t }
+    ghost function Inter<A(!new)>(s: C<A>, t: C<A>): C<A> { s * t }
+    ghost function Diff<A(!new)>(s: C<A>, t: C<A>): C<A> { s - t }
+    ghost predicate Subset<A(!new)>(s: C<A>, t: C<A>) { s <= t }
 
-    lemma EmptyChar<A(==, !new)>(x: A) {}
-    lemma SingleChar<A(==, !new)>(y: A, x: A) {}
-    lemma UnionChar<A(==, !new)>(s: C<A>, t: C<A>, x: A) {}
-    lemma InterChar<A(==, !new)>(s: C<A>, t: C<A>, x: A) {}
-    lemma DiffChar<A(==, !new)>(s: C<A>, t: C<A>, x: A) {}
-    lemma SubsetChar<A(==, !new)>(s: C<A>, t: C<A>) {
+    lemma EmptyChar<A(!new)>(x: A) {}
+    lemma SingleChar<A(!new)>(y: A, x: A) {}
+    lemma UnionChar<A(!new)>(s: C<A>, t: C<A>, x: A) {}
+    lemma InterChar<A(!new)>(s: C<A>, t: C<A>, x: A) {}
+    lemma DiffChar<A(!new)>(s: C<A>, t: C<A>, x: A) {}
+    lemma SubsetChar<A(!new)>(s: C<A>, t: C<A>) {
         forall x ensures In(x, s) <==> x in s {}
         forall x ensures In(x, t) <==> x in t {}
     }
-    lemma Extensionality<A(==, !new)>(s: C<A>, t: C<A>) {
+    lemma Extensionality<A(!new)>(s: C<A>, t: C<A>) {
         forall x ensures x in s <==> x in t {
             assert In(x, s) <==> In(x, t);   // instantiate the requires; In unfolds to `in`
         }

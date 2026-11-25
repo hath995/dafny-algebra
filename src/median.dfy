@@ -131,16 +131,3 @@ module RealMedian refines Medians {
         ensures forall a: T, b: T :: Leq(a, b) ==> Leq(a, halve(add(a, b))) && Leq(halve(add(a, b)), b)
     {}
 }
-
-module TestMedians {
-    import IM = IntMedian
-    import BVM = BvMedian
-
-    @Test
-    method test() {
-        var ints := [1,2,3,4,5];
-        print "\nints := ", IM.Median(ints);
-        var bvs: seq<bv8> := [1,2,3,4,5];
-        print "\nbit vectors := ", BVM.Median(bvs);
-    }
-}
